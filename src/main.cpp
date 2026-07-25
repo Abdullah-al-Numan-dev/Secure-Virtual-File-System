@@ -23,9 +23,10 @@ int main()
         cout << "6. Delete Directory\n";
         cout << "7. Change Permissions\n";
         cout << "8. List Files\n";
-        cout << "9. Exit\n";
-
-        cout << "\nEnter your choice: ";
+	cout << "9. View Activity Log\n";
+	cout << "10. Exit\n";
+        
+	cout << "\nEnter your choice: ";
         cin >> choice;
 
         switch (choice)
@@ -164,10 +165,13 @@ case 7:
                 fs.listFiles();
                 break;
 
-            case 9:
-                cout << "\nThank you for using Secure Virtual File System.\n";
-                return 0;
+case 9:
+    fs.viewLog();
+    break;
 
+case 10:
+    cout << "\nThank you for using Secure Virtual File System.\n";
+    return 0;
             default:
                 cout << "\nInvalid choice.\n";
         }

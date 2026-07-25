@@ -1,5 +1,7 @@
 #include "filesystem.h"
+#include "logger.h"
 #include <iostream>
+#include <fstream>
 
 FileSystem::FileSystem() {
     nextInode = 1;
@@ -18,6 +20,7 @@ bool FileSystem::createFile(const std::string& path)
     if (!parentDirectoryExists(path))
     {
         std::cout << "Error: Parent directory does not exist.\n";
+	Logger::log("Failed to create file (parent missing): " + path);
         return false;
     }
 
@@ -25,6 +28,7 @@ bool FileSystem::createFile(const std::string& path)
     if (exists(path))
     {
         std::cout << "Error: File already exists.\n";
+	Logger::log("Failed to create file (already exists): " + path);
         return false;
     }
 
@@ -32,59 +36,63 @@ bool FileSystem::createFile(const std::string& path)
 
     inodeTable[path] = newFile;
 
+    Logger::log("File Created: " + path);
+
     return true;
 }
 
 bool FileSystem::createDirectory(const std::string& path)
 {
-    // Check path format
     if (!isValidPath(path))
     {
         std::cout << "Error: Invalid path.\n";
+        Logger::log("Failed to create directory (invalid path): " + path);
         return false;
     }
 
-    // Check if directory already exists
     if (exists(path))
     {
         std::cout << "Error: Directory already exists.\n";
+        Logger::log("Failed to create directory (already exists): " + path);
         return false;
     }
 
-    // Create directory inode
     Inode newDirectory(nextInode++, path, true);
-
     inodeTable[path] = newDirectory;
+
+    Logger::log("Directory Created: " + path);
 
     return true;
 }
-
 bool FileSystem::deleteFile(const std::string& path) {
     // TODO
     // Check if the file exists
     if (!exists(path))
     {
 	std::cout << "Error: File not found.\n";
-        return false;
+        Logger::log("Failed to delete file (permission denied): " + path);
+	return false;
     }
 
     // Make sure it is not a directory
     if (inodeTable[path].isDirectory)
     {
 	std::cout << "Error: Cannot delete a directory using deleteFile().\n";
-        return false;
+        Logger::log("Failed to delete file (permission denied): " + path);
+	return false;
     }
 
 	// Check write permission
     if (inodeTable[path].permissions.find('w') == std::string::npos)
     {
         std::cout << "Error: Delete permission denied.\n";
+	Logger::log("Failed to delete file (permission denied): " + path);
         return false;
     }
 
     // Remove the file
     inodeTable.erase(path);
-
+    Logger::log("File Deleted: " + path);
     return true;
 }
 
@@ -93,7 +101,8 @@ bool FileSystem::deleteDirectory(const std::string& path)
     if (!exists(path))
     {
         std::cout << "Error: Directory not found.\n";
-        return false;
+        Logger::log("Failed to delete directory (not empty): " + path);
+	return false;
     }
 
     Inode &dir = inodeTable[path];
@@ -101,17 +110,19 @@ bool FileSystem::deleteDirectory(const std::string& path)
     if (!dir.isDirectory)
     {
         std::cout << "Error: This is not a directory.\n";
-        return false;
+        Logger::log("Failed to delete directory (not empty): " + path);
+	return false;
     }
 
     if (!isDirectoryEmpty(path))
     {
         std::cout << "Error: Directory is not empty.\n";
-        return false;
+        Logger::log("Failed to delete directory (not empty): " + path);
+	return false;
     }
 
     inodeTable.erase(path);
-
+    Logger::log("Directory Deleted: " + path);
     return true;
 }
 bool FileSystem::writeFile(const std::string& path, const std::string& data)
@@ -119,6 +130,7 @@ bool FileSystem::writeFile(const std::string& path, const std::string& data)
     if (!exists(path))
     {
         std::cout << "Error: File not found.\n";
+	Logger::log("Failed to write file (permission denied): " + path);
         return false;
     }
 
@@ -127,25 +139,29 @@ bool FileSystem::writeFile(const std::string& path, const std::string& data)
     if (file.isDirectory)
     {
         std::cout << "Error: Cannot write to a directory.\n";
+	Logger::log("Failed to write file (permission denied): " + path);
         return false;
     }
 
     if (file.permissions.find('w') == std::string::npos)
     {
         std::cout << "Error: Write permission denied.\n";
-        return false;
+	Logger::log("Failed to write file (permission denied): " + path);
+	return false;
     }
 
     file.content = encrypt(data);
     file.fileSize = data.size();
     file.modifiedTime = time(nullptr);
 
+    Logger::log("File Written: " + path);
     return true;
 }
 std::string FileSystem::readFile(const std::string& path)
 {
     if (!exists(path))
     {
+	Logger::log("Failed to read file (permission denied): " + path);
         return "Error: File not found.";
     }
 
@@ -153,14 +169,17 @@ std::string FileSystem::readFile(const std::string& path)
 
     if (file.isDirectory)
     {
+	Logger::log("Failed to read file (permission denied): " + path);
         return "Error: Cannot read a directory.";
     }
 
     if (file.permissions.find('r') == std::string::npos)
     {
+	Logger::log("Failed to read file (permission denied): " + path);
         return "Error: Read permission denied.";
     }
 
+    Logger::log("File Read: " + path);
     return decrypt(file.content);
 }
 bool FileSystem::exists(const std::string& path) {
@@ -189,11 +208,12 @@ bool FileSystem::changePermissions(const std::string& path,
     if (!exists(path))
     {
         std::cout << "Error: File not found.\n";
+	Logger::log("Failed to change permissions (not found): " + path);
         return false;
     }
 
     inodeTable[path].permissions = permissions;
-
+    Logger::log("Permissions Changed: " + path + " -> " + permissions);
     return true;
 }
 std::string FileSystem::encrypt(const std::string& data)
@@ -270,4 +290,25 @@ bool FileSystem::isDirectoryEmpty(const std::string& path)
     }
 
     return true;
+}
+void FileSystem::viewLog()
+{
+    std::ifstream logFile("log.txt");
+
+    if (!logFile)
+    {
+        std::cout << "\nNo activity log found.\n";
+        return;
+    }
+
+    std::cout << "\n========== ACTIVITY LOG ==========\n";
+
+    std::string line;
+
+    while (std::getline(logFile, line))
+    {
+        std::cout << line << std::endl;
+    }
+
+    logFile.close();
 }

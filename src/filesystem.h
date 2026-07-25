@@ -44,6 +44,13 @@ public:
     bool exists(const std::string& path);
 
     void listFiles();
+
+    void viewLog();
+
+    void showDirectoryTree();
+
+    void printTree(const std::string& currentPath,
+                   const std::string& indent);
 };
 
 #endif

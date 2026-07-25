@@ -1,0 +1,11 @@
+# Compiled executable
+src/filemanager
+
+# Log files
+src/log.txt
+
+# Backup files
+*.save
+
+# Object files
+*.o
