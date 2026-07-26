@@ -3,6 +3,7 @@
 
 #include <map>
 #include <string>
+#include <vector>
 #include "inode.h"
 
 class FileSystem {
@@ -43,7 +44,11 @@ public:
 
     bool exists(const std::string& path);
 
+    Inode* getInode(const std::string& path);
+
     void listFiles();
+
+    std::vector<std::string> getAllPaths();
 
     void viewLog();
 

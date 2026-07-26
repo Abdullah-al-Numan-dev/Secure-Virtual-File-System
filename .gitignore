@@ -1,11 +1,16 @@
-# Compiled executable
+# Compiled executables
+securevfs
 src/filemanager
+src/securevfs_fuse
 
 # Log files
+log.txt
 src/log.txt
 
 # Backup files
 *.save
-
-# Object files
 *.o
+
+# Ignore mounted filesystem contents
+mount/*
+!mount/.gitkeep

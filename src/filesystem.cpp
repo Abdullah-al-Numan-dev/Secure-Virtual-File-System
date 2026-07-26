@@ -2,6 +2,7 @@
 #include "logger.h"
 #include <iostream>
 #include <fstream>
+#include <vector>
 
 FileSystem::FileSystem() {
     nextInode = 1;
@@ -202,6 +203,17 @@ void FileSystem::listFiles() {
         std::cout << "-----------------------------\n";
     }
 }
+Inode* FileSystem::getInode(const std::string& path)
+{
+    auto it = inodeTable.find(path);
+
+    if (it == inodeTable.end())
+    {
+        return nullptr;
+    }
+
+    return &it->second;
+}
 bool FileSystem::changePermissions(const std::string& path,
                                    const std::string& permissions)
 {
@@ -311,4 +323,15 @@ void FileSystem::viewLog()
     }
 
     logFile.close();
+}
+std::vector<std::string> FileSystem::getAllPaths()
+{
+    std::vector<std::string> paths;
+
+    for (const auto &item : inodeTable)
+    {
+        paths.push_back(item.first);
+    }
+
+    return paths;
 }
