@@ -63,7 +63,7 @@ SecureVFS/
 
 ```bash
 cd src
-g++ *.cpp -o filemanager
+g++ main.cpp filesystem.cpp inode.cpp logger.cpp -o filemanager
 ```
 
 ---
