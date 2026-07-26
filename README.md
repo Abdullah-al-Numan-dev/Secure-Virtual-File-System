@@ -102,9 +102,9 @@ g++ *.cpp -o filemanager
 
 ## Author
 
-**Abdullah Al Numan**
-**Fahalullah Fahim**
-**Minhaj Ahmed Chowdhury**
+**Abdullah Al Numan,**
+**Fahalullah Fahim,**
+**Minhaj Ahmed Chowdhury,**
 **Yasir Rahman**
 
 Operating Systems Project
