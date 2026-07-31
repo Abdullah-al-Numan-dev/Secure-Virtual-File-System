@@ -3,9 +3,49 @@
 #include <iostream>
 #include <fstream>
 #include <vector>
+#include <filesystem>
 
-FileSystem::FileSystem() {
+namespace fs = std::filesystem;
+
+FileSystem::FileSystem()
+{
     nextInode = 1;
+
+    std::string storagePath = "../storage";
+
+    if (!fs::exists(storagePath))
+        return;
+
+    for (const auto &entry : fs::recursive_directory_iterator(storagePath))
+    {
+        // Build virtual path
+        std::string virtualPath =
+            entry.path().string().substr(storagePath.length());
+
+        if (entry.is_directory())
+        {
+            Inode dir(nextInode++, virtualPath, true);
+            inodeTable[virtualPath] = dir;
+        }
+        else
+        {
+            Inode file(nextInode++, virtualPath, false);
+
+            std::ifstream in(entry.path());
+
+            if (in)
+            {
+                std::string content(
+                    (std::istreambuf_iterator<char>(in)),
+                    std::istreambuf_iterator<char>());
+
+                file.content = content;
+                file.fileSize = decrypt(content).size();
+            }
+
+            inodeTable[virtualPath] = file;
+        }
+    }
 }
 
 bool FileSystem::createFile(const std::string& path)
@@ -33,13 +73,27 @@ bool FileSystem::createFile(const std::string& path)
         return false;
     }
 
-    Inode newFile(nextInode++, path, false);
+// Create the real file inside storage
+std::string realPath = "../storage" + path;
 
-    inodeTable[path] = newFile;
+std::ofstream file(realPath);
 
-    Logger::log("File Created: " + path);
+if (!file)
+{
+    std::cout << "Error: Failed to create file on disk.\n";
+    return false;
+}
 
-    return true;
+file.close();
+
+// Create inode
+Inode newFile(nextInode++, path, false);
+inodeTable[path] = newFile;
+
+Logger::log("File Created: " + path);
+
+return true;
+
 }
 
 bool FileSystem::createDirectory(const std::string& path)
@@ -58,12 +112,26 @@ bool FileSystem::createDirectory(const std::string& path)
         return false;
     }
 
-    Inode newDirectory(nextInode++, path, true);
-    inodeTable[path] = newDirectory;
+    // Create the real directory inside storage/
+std::string realPath = "../storage" + path;
 
-    Logger::log("Directory Created: " + path);
+try
+{
+    fs::create_directories(realPath);
+}
+catch (...)
+{
+    std::cout << "Error: Failed to create directory on disk.\n";
+    return false;
+}
 
-    return true;
+// Create directory inode
+Inode newDirectory(nextInode++, path, true);
+inodeTable[path] = newDirectory;
+
+Logger::log("Directory Created: " + path);
+
+return true;
 }
 bool FileSystem::deleteFile(const std::string& path) {
     // TODO
@@ -92,9 +160,27 @@ bool FileSystem::deleteFile(const std::string& path) {
     }
 
     // Remove the file
-    inodeTable.erase(path);
-    Logger::log("File Deleted: " + path);
-    return true;
+// Delete the real file from storage
+std::string realPath = "../storage" + path;
+
+try
+{
+    fs::remove(realPath);
+}
+catch (...)
+{
+    std::cout << "Error: Failed to delete file from storage.\n";
+    return false;
+}
+
+// Remove from memory
+inodeTable.erase(path);
+
+Logger::log("File Deleted: " + path);
+
+return true;
+
+
 }
 
 bool FileSystem::deleteDirectory(const std::string& path)
@@ -122,16 +208,34 @@ bool FileSystem::deleteDirectory(const std::string& path)
 	return false;
     }
 
-    inodeTable.erase(path);
-    Logger::log("Directory Deleted: " + path);
-    return true;
+// Delete the real directory
+std::string realPath = "../storage" + path;
+
+try
+{
+    fs::remove(realPath);
 }
+catch (...)
+{
+    std::cout << "Error: Failed to delete directory from storage.\n";
+    return false;
+}
+
+// Remove from memory
+inodeTable.erase(path);
+
+Logger::log("Directory Deleted: " + path);
+
+return true;
+
+}
+
 bool FileSystem::writeFile(const std::string& path, const std::string& data)
 {
     if (!exists(path))
     {
         std::cout << "Error: File not found.\n";
-	Logger::log("Failed to write file (permission denied): " + path);
+        Logger::log("Failed to write file (file not found): " + path);
         return false;
     }
 
@@ -140,24 +244,41 @@ bool FileSystem::writeFile(const std::string& path, const std::string& data)
     if (file.isDirectory)
     {
         std::cout << "Error: Cannot write to a directory.\n";
-	Logger::log("Failed to write file (permission denied): " + path);
+        Logger::log("Failed to write file (directory): " + path);
         return false;
     }
 
     if (file.permissions.find('w') == std::string::npos)
     {
         std::cout << "Error: Write permission denied.\n";
-	Logger::log("Failed to write file (permission denied): " + path);
-	return false;
+        Logger::log("Failed to write file (permission denied): " + path);
+        return false;
     }
 
+    // Save encrypted content in memory
     file.content = encrypt(data);
     file.fileSize = data.size();
     file.modifiedTime = time(nullptr);
 
+    // Save encrypted content to disk
+    std::string realPath = "../storage" + path;
+
+    std::ofstream outFile(realPath);
+
+    if (!outFile)
+    {
+        std::cout << "Error: Failed to write file on disk.\n";
+        return false;
+    }
+
+    outFile << file.content;
+    outFile.close();
+
     Logger::log("File Written: " + path);
+
     return true;
 }
+
 std::string FileSystem::readFile(const std::string& path)
 {
     if (!exists(path))
